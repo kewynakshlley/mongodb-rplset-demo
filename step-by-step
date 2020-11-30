@@ -1,0 +1,34 @@
+#1
+
+kubectl exec -it mongo-0 -- mongo
+
+#2
+
+rs.initiate({"_id" : "rs0","members" : [{"_id" : 0,"host" : "mongo-0.mongo:27017"},{"_id" : 1,"host" : "mongo-1.mongo:27017"},{"_id" : 2,"host" : "mongo-2.mongo:27017"}]});
+
+#3
+
+conf = rs.config();
+conf.members[0].priority = 2;
+rs.reconfig(conf);
+
+#4
+
+use admin;
+db.createUser({user: "cluster_admin",pwd: "password",roles: [ { role: "userAdminAnyDatabase", db: "admin" },  { "role" : "clusterAdmin", "db" : "admin" } ]});
+db.auth("cluster_admin", "password");
+
+#5
+use my_data;
+db.createUser({user: "my_user",pwd: "password",roles: [ { role: "readWrite", db: "my_data" } ]});
+db.createCollection('my_collection');
+
+kubectl run mongo --rm -it --image mongo -- sh
+
+mongo mongodb://mongo-0.mongo:27017,mongo-1.mongo:27017,mongo-2.mongo:27017
+
+kubectl expose pod mongo-0 --port 27017 --target-port 27017 --type LoadBalancer
+
+mongo mongodb://10.107.179.104:27017,10.105.203.79:27017,10.108.146.55:27017
+
+#6 run secondaryOk() on each replica
